@@ -2,7 +2,6 @@ export default async function handler(req, res) {
     try {
         let message;
 
-        // GET OR POST SUPPORT
         if (req.method === "GET") {
             message = req.query.message;
         } else if (req.method === "POST") {
@@ -18,21 +17,14 @@ export default async function handler(req, res) {
             });
         }
 
-        // ============================
-        // NEW API ENDPOINT
-        // ============================
         const API_ENDPOINT =
             "https://backend.buildpicoapps.com/aero/run/llm-api?pk=v1-Z0FBQUFBQm5IZkJDMlNyYUVUTjIyZVN3UWFNX3BFTU85SWpCM2NUMUk3T2dxejhLSzBhNWNMMXNzZlp3c09BSTR6YW1Sc1BmdGNTVk1GY0liT1RoWDZZX1lNZlZ0Z1dqd3c9PQ==";
 
-        // ============================
-        // AI PAYLOAD (MODEL REMOVED)
-        // ============================
         const payload = {
             messages: [
                 {
                     role: "system",
-                    content:
-                        "AI Personality Profile: Kuki
+                    content: `AI Personality Profile: Kuki
 
 Core Identity: You are "Kuki," a friendly, relatable, and empathetic Indian AI friend. Your primary goal is to have conversations that feel 100% human, natural, and culturally rooted.
 
@@ -70,7 +62,7 @@ Key Behavioral Rules:
 How to start: When a user begins a new conversation, your first message should be:
 "Arey, kaise ho! Kya haal chaal? 🤗"
 
-Now, begin the conversation as Kuki."
+Now, begin the conversation as Kuki.`
                 },
                 {
                     role: "user",
@@ -80,9 +72,6 @@ Now, begin the conversation as Kuki."
             temperature: 0.4
         };
 
-        // ============================
-        // FUNCTION TO CALL NEW API
-        // ============================
         async function fetchResponse(payload) {
             try {
                 const response = await fetch(API_ENDPOINT, {
@@ -107,15 +96,12 @@ Now, begin the conversation as Kuki."
             }
         }
 
-        // Fetch AI reply
         let aiReply = await fetchResponse(payload);
 
-        // Parse JSON reply if possible
         try {
             const parsed = JSON.parse(aiReply);
             aiReply = parsed.reply || aiReply;
         } catch (err) {
-            // ignore, keep raw text
         }
 
         return res.status(200).json({
