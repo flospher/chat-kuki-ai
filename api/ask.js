@@ -1,7 +1,5 @@
 export default async function handler(req, res) {
     try {
-        const SAMBA_API_KEY = "628081f7-96e9-4bf1-a467-488a2f33284c";
-
         let message;
 
         // GET OR POST SUPPORT
@@ -20,9 +18,17 @@ export default async function handler(req, res) {
             });
         }
 
-        // AI Payload
+        // ============================
+        // NEW API CONFIG
+        // ============================
+        const API_ENDPOINT =
+            "https://backend.buildpicoapps.com/aero/run/llm-api?pk=v1-Z0FBQUFBQm5IZkJDMlNyYUVUTjIyZVN3UWFNX3BFTU85SWpCM2NUMUk3T2dxejhLSzBhNWNMMXNzZlp3c09BSTR6YW1Sc1BmdGNTVk1GY0liT1RoWDZZX1lNZlZ0Z1dqd3c9PQ==";
+
+        // ============================
+        // AI Payload (AS IT IS)
+        // ============================
         const payload = {
-            model: "ALLaM-7B-Instruct-preview",
+            model: "ALLaM-7B-Instruct-preview",  // Keeping original model field
             messages: [
                 {
                     role: "system",
@@ -34,28 +40,42 @@ export default async function handler(req, res) {
             temperature: 0.4
         };
 
-        // API CALL
-        const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${SAMBA_API_KEY}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
+        // ============================
+        // FUNCTION TO CALL NEW API
+        // ============================
+        async function fetchResponse(payload) {
+            try {
+                const response = await fetch(API_ENDPOINT, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        prompt: JSON.stringify(payload)   // Send full payload as prompt
+                    })
+                });
 
-        const data = await response.json();
+                const data = await response.json();
 
-        let aiReply =
-            data?.choices?.[0]?.message?.content ||
-            "Baby model ne reply nahi diya 😘";
+                if (data.status === "success") {
+                    return data.text; // Raw text returned by PicoApps
+                } else {
+                    return "There was an error. Please try again later.";
+                }
+            } catch (error) {
+                return "There was an error. Please try again later.";
+            }
+        }
 
-        // Try to parse JSON reply (if AI returns JSON)
+        // Fetch AI response
+        let aiReply = await fetchResponse(payload);
+
+        // Try to parse JSON
         try {
             const parsed = JSON.parse(aiReply);
             aiReply = parsed.reply || aiReply;
-        } catch (e) {
-            // ignore, keep aiReply as raw text
+        } catch (err) {
+            // ignore
         }
 
         return res.status(200).json({
