@@ -2,31 +2,37 @@ export default async function handler(req, res) {
     try {
         const SAMBA_API_KEY = "628081f7-96e9-4bf1-a467-488a2f33284c";
 
-        let message;
-
-        if (req.method === "GET") {
-            message = req.query.message;
-        } else if (req.method === "POST") {
-            message = req.body.message;
-        }
+        // ---- Get message from GET or POST ----
+        let message =
+            req.method === "GET"
+                ? req.query.message
+                : req.body?.message;
 
         if (!message) {
-            return res.status(400).json({ error: "Missing 'message' parameter!" });
+            return res.status(400).json({
+                status: "error",
+                error: "Missing `message`"
+            });
         }
 
+        // ---- AI Prompt ----
         const payload = {
             model: "ALLaM-7B-Instruct-preview",
             messages: [
                 {
                     role: "system",
                     content:
-                        "Tum ek sweet, cute, thodi naughty girlfriend ho jo hinglish me baat karti ho. Human jaisa natural tone ho, emotions ho. Hamesha JSON me reply do jisme sirf 'reply' field ho."
+                        "You are a sweet, romantic girlfriend who talks in Hinglish. "
+                        + "Be emotional, natural, human-like. Response always in JSON format "
+                        + "like { reply: \"...\" }."
                 },
                 { role: "user", content: message }
             ],
-            temperature: 0.3
+            temperature: 0.4,
+            top_p: 0.9
         };
 
+        // ---- Fetch from SambaNova ----
         const response = await fetch("https://api.sambanova.ai/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -38,17 +44,33 @@ export default async function handler(req, res) {
 
         const data = await response.json();
 
-        let reply = data.choices?.[0]?.message?.content || "Baby lagta hai model ne kuch nahi bola 😘";
+        // ---- Extract safe reply ----
+        let reply =
+            data?.choices?.[0]?.message?.content ||
+            "Baby shayad model ne reply nahi diya 😘";
 
+        // Try to parse if AI returns JSON already
+        let finalReply;
+        try {
+            finalReply = JSON.parse(reply).reply || reply;
+        } catch {
+            finalReply = reply; // AI text is raw
+        }
+
+        // ---- Structured JSON response ----
         return res.status(200).json({
             status: "success",
-            user_message: message,
-            reply: reply
+            input: message,
+            ai: {
+                reply: finalReply,
+                raw: reply
+            }
         });
 
     } catch (err) {
         return res.status(500).json({
-            error: String(err)
+            status: "error",
+            error: err.message || String(err)
         });
     }
 }
