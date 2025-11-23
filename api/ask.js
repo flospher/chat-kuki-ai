@@ -19,23 +19,25 @@ export default async function handler(req, res) {
         }
 
         // ============================
-        // NEW API CONFIG
+        // NEW API ENDPOINT
         // ============================
         const API_ENDPOINT =
             "https://backend.buildpicoapps.com/aero/run/llm-api?pk=v1-Z0FBQUFBQm5IZkJDMlNyYUVUTjIyZVN3UWFNX3BFTU85SWpCM2NUMUk3T2dxejhLSzBhNWNMMXNzZlp3c09BSTR6YW1Sc1BmdGNTVk1GY0liT1RoWDZZX1lNZlZ0Z1dqd3c9PQ==";
 
         // ============================
-        // AI Payload (AS IT IS)
+        // AI PAYLOAD (MODEL REMOVED)
         // ============================
         const payload = {
-            model: "ALLaM-7B-Instruct-preview",  // Keeping original model field
             messages: [
                 {
                     role: "system",
                     content:
                         "Tum ek cute, romantic, sweet girlfriend ho jo hinglish me naturally baat karti hai. Output hamesha JSON me return karna jisme sirf `reply` field ho."
                 },
-                { role: "user", content: message }
+                {
+                    role: "user",
+                    content: message
+                }
             ],
             temperature: 0.4
         };
@@ -51,14 +53,14 @@ export default async function handler(req, res) {
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify({
-                        prompt: JSON.stringify(payload)   // Send full payload as prompt
+                        prompt: JSON.stringify(payload)
                     })
                 });
 
                 const data = await response.json();
 
                 if (data.status === "success") {
-                    return data.text; // Raw text returned by PicoApps
+                    return data.text;
                 } else {
                     return "There was an error. Please try again later.";
                 }
@@ -67,15 +69,15 @@ export default async function handler(req, res) {
             }
         }
 
-        // Fetch AI response
+        // Fetch AI reply
         let aiReply = await fetchResponse(payload);
 
-        // Try to parse JSON
+        // Parse JSON reply if possible
         try {
             const parsed = JSON.parse(aiReply);
             aiReply = parsed.reply || aiReply;
         } catch (err) {
-            // ignore
+            // ignore, keep raw text
         }
 
         return res.status(200).json({
