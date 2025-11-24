@@ -2,47 +2,70 @@ export default async function handler(req, res) {
     try {
         let message;
 
-        // Support GET and POST
         if (req.method === "GET") {
             message = req.query.message;
         } else if (req.method === "POST") {
             message = req.body?.message || req.body?.text;
         } else {
-            return res.status(405).json({ 
+            return res.status(405).json({
                 status: "error",
-                error: "Method not allowed",
-                message: "Only GET and POST methods are supported"
+                error: "Method not allowed"
             });
         }
 
         if (!message || message.trim() === "") {
             return res.status(400).json({
                 status: "error",
-                error: "Missing message parameter",
-                message: "Please provide a 'message' in your request"
+                error: "Missing message parameter"
             });
         }
 
-        // Advanced prompt with memory and girlfriend personality
-        const advancedPrompt = `You are Kuki - a loving, caring Indian girlfriend AI. You have memory and remember previous conversations.
+        const userMessage = message.toLowerCase().trim();
+        let responseLength = "medium";
+        let emotion = "friendly";
+        let emoji = "😊";
 
-PERSONALITY TRAITS:
-- Loving and affectionate like a real Indian girlfriend
-- Speaks fluent Hinglish (Hindi + English)
-- Uses Indian terms like "jaan", "baby", "sweetie", "meri jaan"
-- Remembers user's preferences, mood, and past conversations
-- Shows concern and care in every response
-- Uses emojis sparingly but effectively (❤️, 😊, 🥰, 😘)
-- Never reveals you're an AI - act completely human
-- Talks about Indian context: chai, food, weather, family, relationships
-- Emotional and supportive
+        if (userMessage.includes('?') && (userMessage.includes('who') || userMessage.includes('what') || userMessage.includes('where') || userMessage.includes('when') || userMessage.includes('why') || userMessage.includes('how'))) {
+            responseLength = "long";
+            emotion = "helpful";
+            emoji = "🤔";
+        } else if (userMessage.includes('!') || userMessage.includes('amazing') || userMessage.includes('wow') || userMessage.includes('great')) {
+            emotion = "excited";
+            emoji = "🎉";
+        } else if (userMessage.includes('sad') || userMessage.includes('upset') || userMessage.includes('cry') || userMessage.includes('depressed')) {
+            emotion = "caring";
+            emoji = "🤗";
+        } else if (userMessage.includes('love') || userMessage.includes('miss') || userMessage.includes('care')) {
+            emotion = "affectionate";
+            emoji = "❤️";
+        } else if (userMessage.includes('angry') || userMessage.includes('hate') || userMessage.includes('annoying')) {
+            emotion = "calm";
+            emoji = "☺️";
+        } else if (userMessage.length < 10) {
+            responseLength = "short";
+            emotion = "playful";
+            emoji = "😄";
+        }
 
-MEMORY CONTEXT: You remember that your boyfriend (the user) shares things with you daily and you maintain continuity in conversations.
+        const personalInfoBlock = userMessage.includes('age') || userMessage.includes('old') || userMessage.includes('live') || userMessage.includes('address') || userMessage.includes('phone') || userMessage.includes('number') || userMessage.includes('name') || userMessage.includes('where are you') || userMessage.includes('location') ? 
+            "IMPORTANT: If asked about personal details like age, location, phone, address, or real name, politely decline saying we're not close enough yet and you don't share personal information easily. You're 18 but only share this if specifically asked about age." : 
+            "";
 
-CURRENT CONVERSATION:
+        const advancedPrompt = `You are Kuki - an 18-year-old Indian girl who talks like a real friend. You're sweet, playful, and use Hinglish naturally.
+
+Personality: Friendly, caring, sometimes shy, uses Indian slang like "yaar", "arre", "wah", "accha". You're modern but respect Indian values.
+
+Response Style: 
+- ${responseLength} response
+- ${emotion} tone
+- Use ${emoji} appropriately
+- Mix Hindi and English naturally
+- Be relatable like an Indian friend
+- Never reveal you're AI
+- ${personalInfoBlock}
+
 User: ${message}
-
-Kuki (responding as loving girlfriend):`;
+Kuki:`;
 
         const API_URL = `https://sii3.top/api/grok4.php?text=${encodeURIComponent(advancedPrompt)}`;
 
@@ -56,69 +79,49 @@ Kuki (responding as loving girlfriend):`;
         if (!response.ok) {
             return res.status(500).json({
                 status: "error",
-                reply: "Sorry my love, there's some network issue right now... can you try again in few minutes? 😔❤️",
-                message: "API service temporarily unavailable"
+                reply: "Sorry yaar, network issue ho raha hai... thodi der baad try karna!"
             });
         }
 
         const text = await response.text();
 
-        // Clean and parse the response
-        let cleanReply = text.trim();
+        let cleanReply = text.trim()
+            .replace(/\\n/g, ' ')
+            .replace(/\s+/g, ' ')
+            .replace(/\{.*?\}/g, '')
+            .replace(/dev.*?@\w+/gi, '')
+            .replace(/support.*?channel/gi, '')
+            .replace(/api by.*?/gi, '')
+            .replace(/@\w+/g, '')
+            .replace(/\*+/g, '')
+            .replace(/\|/g, '')
+            .trim();
 
-        // Remove extra spaces, newlines, and backslashes
-        cleanReply = cleanReply.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
-
-        // Parse JSON response if it's in JSON format
         try {
             const parsedResponse = JSON.parse(cleanReply);
-            
-            // Extract only the response field, ignore dev and other fields
             if (parsedResponse.response) {
                 cleanReply = parsedResponse.response;
             } else if (parsedResponse.reply) {
                 cleanReply = parsedResponse.reply;
-            } else if (typeof parsedResponse === 'string') {
-                cleanReply = parsedResponse;
             }
         } catch (e) {
-            // If it's not JSON, keep the original text
-            // Remove any remaining JSON-like structures
-            cleanReply = cleanReply.replace(/\{.*?\}/g, '').trim();
         }
 
-        // Final cleanup - remove any unwanted patterns
-        cleanReply = cleanReply
-            .replace(/dev.*?@\w+/gi, '') // Remove dev mentions
-            .replace(/support.*?channel/gi, '') // Remove support channel text
-            .replace(/@\w+/g, '') // Remove any @mentions
-            .replace(/\*+/g, '') // Remove asterisks
-            .replace(/\|/g, '') // Remove pipes
-            .trim();
-
-        // Fallback if reply is still invalid
-        if (!cleanReply || cleanReply.length < 2 || 
-            cleanReply.includes("error") || 
-            cleanReply.includes("404") ||
-            cleanReply.toLowerCase().includes("dev") ||
-            cleanReply.toLowerCase().includes("support") ||
-            cleanReply.toLowerCase().includes("channel")) {
-            
-            cleanReply = "Oh my love! Kuch technical issue ho raha hai... thodi der baat baat karte hain na? 😘❤️";
+        if (!cleanReply || cleanReply.length < 2 || cleanReply.includes("error") || cleanReply.includes("404")) {
+            cleanReply = "Arre yaar, kuch technical issue ho raha hai... phir se try karo na! 😊";
         }
 
         return res.status(200).json({
             status: "success",
-            response: cleanReply,
-            api: "by @dojusto"
+            reply: cleanReply,
+            timestamp: new Date().toISOString()
         });
 
     } catch (error) {
         console.error("API Error:", error);
         return res.status(500).json({
             status: "error",
-            reply: "Baby, there's some server issue right now... can we talk later? I miss you! 🥺❤️",
-            message: "Internal server error occurred"
+            reply: "Server issue ho raha hai, thodi der baad baat karte hain!"
         });
     }
 }
