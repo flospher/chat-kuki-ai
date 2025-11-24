@@ -2,9 +2,8 @@ export default async function handler(req, res) {
     try {
         let message;
 
-        // Support GET and POST
         if (req.method === "GET") {
-            message = req.query.message;
+            message = req.query.message || req.query.text;
         } else if (req.method === "POST") {
             message = req.body?.message || req.body?.text;
         } else {
@@ -13,56 +12,77 @@ export default async function handler(req, res) {
 
         if (!message || message.trim() === "") {
             return res.status(400).json({
-                status: "error",
-                error: "Missing 'message'"
+                success: false,
+                response: "message required"
             });
         }
 
-        // NEW GROK-4 API (sii3.top)
+        // New Clean API Call
         const API_URL = `https://sii3.top/api/grok4.php?text=${encodeURIComponent(
-            `You are Kuki — a fun, friendly, Hinglish-speaking Indian AI friend. 
-            Baat karo bilkul natural Indian dost ki tarah, thodi Hinglish, thoda emotion, emojis thodi si, yaar, arre, sach mein wagairah use karo. 
-            Indian context add karo jaise chai, traffic, mom ki daant, festivals etc. 
-            Never say you are AI. Reply short and natural.
+            `You are Kuki — a fun, caring, Hinglish-speaking Indian dost. Baat natural karo jaise real friend: yaar, arre, sach mein, thodi Hinglish, emoji thodi, Indian vibe (chai, mom, traffic, festival). Never say you're AI.
 
-            User: ${message}
-            Kuki:`
+User: ${message}
+Kuki:`
         )}`;
 
         const response = await fetch(API_URL, {
             method: "GET",
             headers: {
-                "User-Agent": "Mozilla/5.0 (compatible; Bot/1.0)"
+                "User-Agent": "Mozilla/5.0 (compatible; KukiBot/1.0)"
             }
         });
 
         if (!response.ok) {
-            return res.status(500).json({
-                status: "error",
-                reply: "Sorry yaar, abhi thodi network problem hai... thodi der mein try karna! 😅"
+            return res.status(200).json({
+                success: false,
+                response: "api error"
             });
         }
 
-        const text = await response.text();
+        let rawText = await response.text();
 
-        // Clean reply (kuch APIs extra text ya JSON error daalte hain)
-        let cleanReply = text.trim();
-
-        // Agar API kuch garbage ya error de raha ho to fallback
-        if (!cleanReply || cleanReply.length < 2 || cleanReply.includes("error") || cleanReply.includes("404")) {
-            cleanReply = "Arre yaar, kuch toh gadbad ho gayi... ek baar aur bol na? 😅";
+        // Step 1: Try to extract JSON if the API returns wrapped JSON
+        try {
+            const parsed = JSON.parse(rawText);
+            if (parsed.response) {
+                rawText = parsed.response;
+            }
+        } catch (e) {
+            // Not JSON, so rawText is already the reply
         }
 
+        // Step 2: Final cleaning - remove any unwanted dev message
+        let cleanReply = rawText
+            .replace(/"dev":[\s]*"[^"]*Don't forget[^"]*"/gi, '')  // Remove dev line
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\/g, '')
+            .trim();
+
+        // Remove empty lines and extra junk
+        cleanReply = cleanReply.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0 && !line.includes('darkaix') && !line.includes('@dojusto') === false)
+            .join(' ');
+
+        // Final fallback if reply is empty or garbage
+        if (!cleanReply || cleanReply.length < 3 || cleanReply.toLowerCase().includes('error')) {
+            cleanReply = "api error";
+        }
+
+        // Final Clean & Beautiful JSON Response
         return res.status(200).json({
-            status: "success",
-            reply: cleanReply
+            success: true,
+            response: cleanReply,
+            api_by: "@dojusto"
         });
 
     } catch (error) {
-        console.error("API Error:", error);
-        return res.status(500).json({
-            status: "error",
-            reply: "Yaar abhi server thoda down lag raha hai, thodi der baad try karna okay? 🥲"
+        console.error("Handler Error:", error);
+        return res.status(200).json({
+            success: false,
+            response: "api error",
+            api_by: "@dojusto"
         });
     }
 }
