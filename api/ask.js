@@ -7,17 +7,11 @@ export default async function handler(req, res) {
         } else if (req.method === "POST") {
             message = req.body?.message || req.body?.text;
         } else {
-            return res.status(405).json({
-                status: "error",
-                error: "Method not allowed"
-            });
+            return res.status(405).send("Method not allowed");
         }
 
         if (!message || message.trim() === "") {
-            return res.status(400).json({
-                status: "error",
-                error: "Missing message parameter"
-            });
+            return res.status(400).send("Missing message");
         }
 
         const userMessage = message.toLowerCase().trim();
@@ -77,15 +71,12 @@ Kuki:`;
         });
 
         if (!response.ok) {
-            return res.status(500).json({
-                status: "error",
-                reply: "Sorry yaar, network issue ho raha hai... thodi der baad try karna!"
-            });
+            return res.status(500).send("Sorry yaar, network issue ho raha hai... thodi der baad try karna!");
         }
 
-        const text = await response.text();
+        let cleanReply = await response.text();
 
-        let cleanReply = text.trim()
+        cleanReply = cleanReply.trim()
             .replace(/\\n/g, ' ')
             .replace(/\s+/g, ' ')
             .replace(/\{.*?\}/g, '')
@@ -99,11 +90,7 @@ Kuki:`;
 
         try {
             const parsedResponse = JSON.parse(cleanReply);
-            if (parsedResponse.response) {
-                cleanReply = parsedResponse.response;
-            } else if (parsedResponse.reply) {
-                cleanReply = parsedResponse.reply;
-            }
+            cleanReply = parsedResponse.response || parsedResponse.reply || parsedResponse.message || cleanReply;
         } catch (e) {
         }
 
@@ -111,17 +98,10 @@ Kuki:`;
             cleanReply = "Arre yaar, kuch technical issue ho raha hai... phir se try karo na! 😊";
         }
 
-        return res.status(200).json({
-            status: "success",
-            reply: cleanReply,
-            timestamp: new Date().toISOString()
-        });
+        return res.status(200).send(cleanReply);
 
     } catch (error) {
         console.error("API Error:", error);
-        return res.status(500).json({
-            status: "error",
-            reply: "Server issue ho raha hai, thodi der baad baat karte hain!"
-        });
+        return res.status(500).send("Server issue ho raha hai, thodi der baad baat karte hain!");
     }
 }
