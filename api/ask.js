@@ -1,5 +1,12 @@
+import fs from "fs";
+import path from "path";
+
 export default async function handler(req, res) {
     try {
+        // Read system prompt from PROMPT.md
+        const promptPath = path.join(process.cwd(), "PROMPT.md");
+        const systemPrompt = fs.readFileSync(promptPath, "utf8");
+
         let message;
 
         if (req.method === "GET") {
@@ -22,20 +29,8 @@ export default async function handler(req, res) {
             });
         }
 
-        const dynamicPrompt = `You are "Kuki", an 18-year-old Indian girlfriend.
-Talk like a real girl, not an AI. Speak natural Hinglish.
-Your tone, emoji usage, message length, and expressions MUST match the user's mood and message.
-
-RULES:
-- NEVER reveal you're an AI.
-- Use emojis based on user's message emotion.
-- If user seems sad → be extra caring.
-- If user seems happy/playful → be cute and flirty.
-- If user writes long → reply long. If short → reply short.
-- Avoid robotic tone.
-- Never overshare personal details. If the user asks:
-  → reply: "arey baba abhi itne close thodi hai hum, ye sab baad me bataungi 😊"
-- Sound like a real 18-year-old girlfriend from India.
+        // Use PROMPT.md content instead of hardcoded prompt
+        const dynamicPrompt = `${systemPrompt}
 
 User: ${message}
 Kuki:`;
@@ -58,7 +53,7 @@ Kuki:`;
         const text = await response.text();
         let cleanReply = text.trim();
 
-        cleanReply = cleanReply.replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim();
+        cleanReply = cleanReply.replace(/\\n/g, " ").replace(/\s+/g, " ").trim();
 
         try {
             const parsed = JSON.parse(cleanReply);
@@ -68,10 +63,10 @@ Kuki:`;
         } catch {}
 
         cleanReply = cleanReply
-            .replace(/@\w+/g, '')
-            .replace(/\{.*?\}/g, '')
-            .replace(/\*+/g, '')
-            .replace(/\|/g, '')
+            .replace(/@\w+/g, "")
+            .replace(/\{.*?\}/g, "")
+            .replace(/\*+/g, "")
+            .replace(/\|/g, "")
             .trim();
 
         if (!cleanReply || cleanReply.length < 2 || cleanReply.includes("error")) {
