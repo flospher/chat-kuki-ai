@@ -35,7 +35,7 @@ export default async function handler(req, res) {
 User: ${message}
 Kuki:`;
 
-        const API_URL = `https://drsudo-deepseek-ai-api.vercel.app/api/chat?v3=${encodeURIComponent(dynamicPrompt)}`;
+        const API_URL = `https://yabes-api.pages.dev/api/ai/chat/meta-ai?prompt=${encodeURIComponent(dynamicPrompt)}`;
 
         const response = await fetch(API_URL, {
             method: "GET",
