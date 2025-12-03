@@ -29,10 +29,10 @@ export default async function handler(req, res) {
             });
         }
 
-        // Combine system prompt + user message
-        const fullPrompt = `${systemPrompt}\n\nUser: ${message}\nKuki:`;
+        // Combine PROMPT + user message
+        const dynamicPrompt = `${systemPrompt}\n\nUser: ${message}\nKuki:`;
 
-        // NEW API → sii3.top DeepSeek
+        // ✅ NEW API
         const API_URL = "https://sii3.top/api/deepseek/api.php";
         const API_KEY = "DarkAI-DeepAI-68932C027912AAE0FDF979E1";
 
@@ -40,19 +40,15 @@ export default async function handler(req, res) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0",
-                "Authorization": `Bearer ${API_KEY}`  // agar key header mein chahiye ho
+                "Authorization": API_KEY,
+                "User-Agent": "Mozilla/5.0"
             },
             body: JSON.stringify({
-                message: fullPrompt,
-                // kuch extra parameters agar zarurat ho to yahan add kar sakte ho
-                stream: false
+                prompt: dynamicPrompt
             })
         });
 
         if (!response.ok) {
-            const errText = await response.text();
-            console.error("DeepSeek API Error:", errText);
             return res.status(500).json({
                 status: "error",
                 reply: "Baby thoda network issue aa raha hai… ek min try karna na ❤️",
@@ -61,11 +57,8 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
+        let cleanReply = data?.response || data?.reply || data?.message || "";
 
-        // DeepSeek usually response ko "reply" ya "response" field mein deta hai
-        let cleanReply = data.reply || data.response || data.output || data.text || JSON.stringify(data);
-
-        // Cleanup (tumhare purane filters same rakhe hain)
         cleanReply = cleanReply
             .replace(/\\n/g, " ")
             .replace(/\s+/g, " ")
@@ -75,8 +68,7 @@ export default async function handler(req, res) {
             .replace(/\|/g, "")
             .trim();
 
-        // Fallback agar reply empty ya error jaisa ho
-        if (!cleanReply || cleanReply.length < 2 || cleanReply.toLowerCase().includes("error")) {
+        if (!cleanReply || cleanReply.length < 2 || cleanReply.includes("error")) {
             cleanReply = "Jaan thoda issue ho gaya… ek baar fir try karte hain na 😘";
         }
 
@@ -86,7 +78,6 @@ export default async function handler(req, res) {
         });
 
     } catch (error) {
-        console.error("Handler Error:", error);
         return res.status(500).json({
             status: "error",
             reply: "Baby kuch server problem aa gaya… thodi der baad try karein? 🥺❤️",
