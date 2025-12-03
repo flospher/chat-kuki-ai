@@ -6,15 +6,11 @@ export default async function handler(req, res) {
         const promptPath = path.join(process.cwd(), "PROMPT.md");
         const systemPrompt = fs.readFileSync(promptPath, "utf8");
 
-        let message;
+        let message = req.method === "GET" ? req.query.message : req.body?.message || req.body?.text;
 
-        if (req.method === "GET") message = req.query.message;
-        else if (req.method === "POST") message = req.body?.message || req.body?.text;
-        else return res.status(405).json({ status: "error", message: "Only GET & POST supported" });
-
-        if (!message) return res.status(400).json({ status: "error", message: "Missing message" });
-
-        const dynamicPrompt = `${systemPrompt}\n\nUser: ${message}\nKuki:`;
+        if (!message) {
+            return res.status(400).json({ status: "error", message: "Missing message" });
+        }
 
         const API_URL = "https://sii3.top/api/deepseek/api.php";
         const API_KEY = "DarkAI-DeepAI-68932C027912AAE0FDF979E1";
@@ -23,57 +19,41 @@ export default async function handler(req, res) {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0",
-                "X-API-Key": API_KEY,
-                "Authorization": `Bearer ${API_KEY}`
+                "User-Agent": "Mozilla/5.0"
             },
             body: JSON.stringify({
-                model: "deepseek-chat",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: message }
-                ]
+                key: API_KEY,   // ✅ REAL FIX: key body me ja rahi hai
+                prompt: `${systemPrompt}\n\nUser: ${message}\nKuki:`
             })
         });
 
-        const rawText = await response.text();
+        const raw = await response.text();
 
         if (!response.ok) {
             return res.status(500).json({
                 status: "error",
-                message: "API response error",
-                debug: rawText
+                message: "API error",
+                debug: raw
             });
         }
 
-        let result = rawText;
-
+        let reply = raw;
         try {
-            const parsed = JSON.parse(rawText);
-            result = parsed.response ||
-                     parsed.reply ||
-                     parsed.message ||
-                     parsed.choices?.[0]?.message?.content ||
-                     rawText;
+            const parsed = JSON.parse(raw);
+            reply = parsed.reply || parsed.response || parsed.message || raw;
         } catch {}
 
-        result = result
-            .replace(/\n/g, " ")
-            .replace(/\s+/g, " ")
-            .replace(/\*+/g, "")
-            .trim();
+        reply = reply.replace(/\s+/g, " ").trim();
 
-        if (!result || result.length < 2) {
-            result = "Baby thoda glitch hua… fir try kare? ❤️";
-        }
+        if (!reply) reply = "Baby thoda system hang ho gaya 💔 fir try karein?";
 
-        return res.json({ status: "success", response: result });
+        return res.json({ status: "success", response: reply });
 
-    } catch (err) {
+    } catch (e) {
         return res.status(500).json({
             status: "error",
-            reply: "Baby kuch gadbad ho gayi… thodi der baad try karein 🥺",
-            debug: err.message
+            message: "Server crash",
+            debug: e.message
         });
     }
 }
